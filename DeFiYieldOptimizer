@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract DeFiYieldOptimizer is Ownable {
+    // Address of the token to be deposited
+    IERC20 public depositToken;
+
+    // Struct to track user deposits
+    struct Deposit {
+        uint256 amount;
+        uint256 timestamp;
+    }
+
+    // Mapping of user address to their deposits
+    mapping(address => Deposit[]) public deposits;
+
+    // Events
+    event DepositAdded(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 amount);
+
+    // Constructor
+    constructor(address _depositToken) {
+        depositToken = IERC20(_depositToken);
+    }
+
+    // Deposit tokens into the optimizer
+    function deposit(uint256 amount) external {
+        require(amount > 0, "Amount must be greater than 0");
+
+        // Transfer tokens from user to contract
+        depositToken.transferFrom(msg.sender, address(this), amount);
+
+        // Record the deposit
+        deposits[msg.sender].push(Deposit({
+            amount: amount,
+            timestamp: block.timestamp
+        }));
+
+        emit DepositAdded(msg.sender, amount);
+    }
+
+    // Withdraw tokens and yield
+    function withdraw(uint256 index) external {
+        require(index < deposits[msg.sender].length, "Invalid index");
+
+        Deposit storage userDeposit = deposits[msg.sender][index];
+        uint256 depositAmount = userDeposit.amount;
+
+        // Simulate yield generation (example: transfer to user directly)
+        depositToken.transfer(msg.sender, depositAmount);
+
+        // Remove the deposit entry
+        delete deposits[msg.sender][index];
+
+        emit Withdrawn(msg.sender, depositAmount);
+    }
+
+    // Get total deposits for a user
+    function getTotalDeposits(address user) external view returns (uint256) {
+        uint256 total = 0;
+        for (uint256 i = 0; i < deposits[user].length; i++) {
+            total += deposits[user][i].amount;
+        }
+        return total;
+    }
+
+    // Withdraw ETH from the contract (only owner)
+    function withdrawETH() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+
+    // Receive function to accept ETH payments
+    receive() external payable {}
+}
